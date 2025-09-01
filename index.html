@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>XR 3D Movie Player</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#003865" />
+  <style>
+    :root {
+      --bg: #0b0f17;
+      --fg: #e5e7eb;
+      --muted: #9ca3af;
+      --accent: #78BE21; /* MNIT green per your palette */
+      --accent2: #003865; /* MNIT blue */
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background: var(--bg);
+      color: var(--fg);
+      display: grid;
+      grid-template-rows: auto 1fr;
+      min-height: 100vh;
+    }
+    header {
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      border-bottom: 1px solid #111827;
+      background: linear-gradient(180deg, #0f1623, #0b0f17);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    h1 {
+      font-size: 1rem;
+      margin: 0;
+      letter-spacing: 0.02em;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.45rem 0.6rem;
+      background: #0f172a;
+      border: 1px solid #1f2937;
+      border-radius: 999px;
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.5rem 0.75rem;
+      margin-left: auto;
+      align-items: center;
+    }
+    .controls label {
+      display: grid;
+      gap: 0.25rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .controls input[type="range"] { width: 100%; }
+    .controls input[type="url"],
+    .controls select,
+    .controls input[type="file"] {
+      width: 100%;
+      padding: 0.35rem 0.5rem;
+      background: #0b1220;
+      color: var(--fg);
+      border: 1px solid #1f2937;
+      border-radius: 0.5rem;
+    }
+    .controls button {
+      padding: 0.5rem 0.8rem;
+      border: 1px solid #1f2937;
+      background: #0d1b2a;
+      color: var(--fg);
+      border-radius: 0.6rem;
+      cursor: pointer;
+    }
+    .controls button.primary {
+      background: var(--accent2);
+      border-color: #07243c;
+    }
+    main { padding: 0.5rem 1rem 1rem; }
+    .status {
+      font-size: 0.9rem; color: var(--muted);
+      margin-top: 0.5rem;
+    }
+    #canvas {
+      width: 100%;
+      height: calc(100vh - 130px);
+      display: block;
+      background: #000;
+      border-radius: 0.75rem;
+      border: 1px solid #111827;
+    }
+    .row { display: contents; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="pill"><strong>XR 3D Movie Player</strong></div>
+    <div class="controls">
+      <label>Video URL
+        <input id="urlInput" type="url" placeholder="https://example.com/video.mp4 (SBS/OU)">
+      </label>
+      <label>Or choose file
+        <input id="fileInput" type="file" accept="video/*">
+      </label>
+      <label>Stereo layout
+        <select id="layout">
+          <option value="mono">Mono (2D)</option>
+          <option value="sbs">Side‑by‑Side (SBS)</option>
+          <option value="ou">Over‑Under (OU)</option>
+        </select>
+      </label>
+      <label>Distance (m): <span id="distanceVal">1.6</span>
+        <input id="distance" type="range" min="0.5" max="4.0" value="1.6" step="0.1">
+      </label>
+      <label>Width (m): <span id="widthVal">3.0</span>
+        <input id="width" type="range" min="1.0" max="8.0" value="3.0" step="0.1">
+      </label>
+      <label>Tilt X (°): <span id="tiltVal">0</span>
+        <input id="tilt" type="range" min="-30" max="30" value="0" step="1">
+      </label>
+      <label>Yaw Y (°): <span id="yawVal">0</span>
+        <input id="yaw" type="range" min="-45" max="45" value="0" step="1">
+      </label>
+      <label>Roll Z (°): <span id="rollVal">0</span>
+        <input id="roll" type="range" min="-20" max="20" value="0" step="1">
+      </label>
+      <label>Parallax Shift (%): <span id="shiftVal">0</span>
+        <input id="shift" type="range" min="-10" max="10" value="0" step="0.5">
+      </label>
+      <label class="row">
+        <span><input id="swapEyes" type="checkbox"> Swap eyes</span>
+      </label>
+      <button id="loadBtn">Load</button>
+      <button id="playBtn">Play/Pause</button>
+      <button id="enterVR" class="primary">Enter VR</button>
+      <button id="resetBtn">Recenter</button>
+      <button id="fsBtn">Fullscreen 2D</button>
+    </div>
+  </header>
+  <main>
+    <canvas id="canvas" aria-label="WebXR canvas"></canvas>
+    <div class="status" id="status">Ready. Tip: Use SBS/OU appropriately; start muted to satisfy autoplay rules.</div>
+  </main>
+
+  <video id="video" playsinline crossorigin="anonymous" style="display:none"></video>
+
+  <script>
+    // PWA: register service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(console.warn);
+    }
+
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const gl = canvas.getContext('webgl', { alpha: false, antialias: true });
+    let xrSession = null;
+    let xrRefSpace = null;
+    let xrLayer = null;
+
+    const st = (msg) => document.getElementById('status').textContent = msg;
+
+    // UI elements
+    const urlInput = document.getElementById('urlInput');
+    const fileInput = document.getElementById('fileInput');
+    const layoutSel = document.getElementById('layout');
+    const distanceIn = document.getElementById('distance');
+    const widthIn = document.getElementById('width');
+    const tiltIn = document.getElementById('tilt');
+    const yawIn = document.getElementById('yaw');
+    const rollIn = document.getElementById('roll');
+    const shiftIn = document.getElementById('shift');
+    const swapEyes = document.getElementById('swapEyes');
+    const distanceVal = document.getElementById('distanceVal');
+    const widthVal = document.getElementById('widthVal');
+    const tiltVal = document.getElementById('tiltVal');
+    const yawVal = document.getElementById('yawVal');
+    const rollVal = document.getElementById('rollVal');
+    const shiftVal = document.getElementById('shiftVal');
+
+    [distanceIn, widthIn, tiltIn, yawIn, rollIn, shiftIn].forEach(inp => {
+      const map = {distance: distanceVal, width: widthVal, tilt: tiltVal, yaw: yawVal, roll: rollVal, shift: shiftVal};
+      inp.addEventListener('input', () => {
+        map[inp.id].textContent = inp.value;
+      });
+    });
+
+    document.getElementById('fsBtn').addEventListener('click', () => {
+      if (canvas.requestFullscreen) canvas.requestFullscreen();
+    });
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      // Recenter: we will rebuild base transform on next frame
+      baseTransform = identity();
+      st('Recentered screen in front of you.');
+    });
+
+    // Video controls
+    document.getElementById('loadBtn').addEventListener('click', () => {
+      if (urlInput.value) {
+        video.src = urlInput.value;
+        video.load();
+        st('Loaded URL. Click Play, then Enter VR.');
+      } else {
+        st('Enter a video URL or choose a file.');
+      }
+    });
+    fileInput.addEventListener('change', () => {
+      const f = fileInput.files && fileInput.files[0];
+      if (f) {
+        const url = URL.createObjectURL(f);
+        video.src = url;
+        video.load();
+        st('Loaded local file. Click Play, then Enter VR.');
+      }
+    });
+    document.getElementById('playBtn').addEventListener('click', async () => {
+      try {
+        if (video.paused) {
+          video.muted = true; // start muted for autoplay policy
+          await video.play();
+          st('Playing (muted). Use volume keys to unmute.');
+        } else {
+          video.pause();
+          st('Paused.');
+        }
+      } catch (e) {
+        console.warn(e);
+        st('Playback failed. Some formats require a native app (HEVC/DRM).');
+      }
+    });
+
+    // ---- WebGL setup ----
+    function compile(gl, type, src) {
+      const sh = gl.createShader(type);
+      gl.shaderSource(sh, src);
+      gl.compileShader(sh);
+      if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+        console.error(gl.getShaderInfoLog(sh));
+        throw new Error('Shader compile failed');
+      }
+      return sh;
+    }
+    const vsSrc = `
+      attribute vec3 aPos;
+      attribute vec2 aUV;
+      uniform mat4 uProj;
+      uniform mat4 uView;
+      uniform mat4 uModel;
+      varying vec2 vUV;
+      void main() {
+        vUV = aUV;
+        gl_Position = uProj * uView * uModel * vec4(aPos, 1.0);
+      }
+    `;
+    const fsSrc = `
+      precision mediump float;
+      varying vec2 vUV;
+      uniform sampler2D uTex;
+      uniform int uEye; // 0 left, 1 right
+      uniform int uLayout; // 0 mono, 1 sbs, 2 ou
+      uniform bool uSwap;
+      uniform float uShift; // -0.1..0.1 percent mapping adjust
+
+      void main() {
+        vec2 uv = vUV;
+        int eye = uEye;
+        // swap eyes if requested
+        if (uSwap) {
+          eye = (uEye == 0) ? 1 : 0;
+        }
+
+        if (uLayout == 1) {
+          // SBS: split horizontally
+          float halfX = 0.5;
+          float x = uv.x * halfX + (eye == 0 ? 0.0 : halfX);
+          // parallax shift: move sample slightly per-eye (in half-image units)
+          float shift = uShift * halfX;
+          x += (eye == 0 ? -shift : shift);
+          uv = vec2(x, uv.y);
+        } else if (uLayout == 2) {
+          // OU: split vertically
+          float halfY = 0.5;
+          float y = uv.y * halfY + (eye == 0 ? 0.0 : halfY);
+          float shift = uShift * halfY;
+          y += (eye == 0 ? -shift : shift);
+          uv = vec2(uv.x, y);
+        }
+        gl_FragColor = texture2D(uTex, uv);
+      }
+    `;
+    const vs = compile(gl, gl.VERTEX_SHADER, vsSrc);
+    const fs = compile(gl, gl.FRAGMENT_SHADER, fsSrc);
+    const prog = gl.createProgram();
+    gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+      console.error(gl.getProgramInfoLog(prog));
+      throw new Error('Program link failed');
+    }
+    gl.useProgram(prog);
+
+    // Geometry: a unit quad centered at origin (width=1, height=1) on Z=0 plane
+    const posBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+    const verts = new Float32Array([
+      -0.5, -0.5, 0,
+       0.5, -0.5, 0,
+       0.5,  0.5, 0,
+      -0.5,  0.5, 0
+    ]);
+    gl.bufferData(gl.ARRAY_BUFFER, verts, gl.STATIC_DRAW);
+
+    const uvBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, uvBuf);
+    const uvs = new Float32Array([
+      0, 1,  1, 1,  1, 0,  0, 0
+    ]);
+    gl.bufferData(gl.ARRAY_BUFFER, uvs, gl.STATIC_DRAW);
+
+    const idxBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf);
+    const idx = new Uint16Array([0,1,2, 0,2,3]);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
+
+    const aPos = gl.getAttribLocation(prog, 'aPos');
+    gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+    gl.enableVertexAttribArray(aPos);
+    gl.vertexAttribPointer(aPos, 3, gl.FLOAT, false, 0, 0);
+
+    const aUV = gl.getAttribLocation(prog, 'aUV');
+    gl.bindBuffer(gl.ARRAY_BUFFER, uvBuf);
+    gl.enableVertexAttribArray(aUV);
+    gl.vertexAttribPointer(aUV, 2, gl.FLOAT, false, 0, 0);
+
+    const uProj = gl.getUniformLocation(prog, 'uProj');
+    const uView = gl.getUniformLocation(prog, 'uView');
+    const uModel = gl.getUniformLocation(prog, 'uModel');
+    const uTex = gl.getUniformLocation(prog, 'uTex');
+    const uEye = gl.getUniformLocation(prog, 'uEye');
+    const uLayout = gl.getUniformLocation(prog, 'uLayout');
+    const uSwap = gl.getUniformLocation(prog, 'uSwap');
+    const uShift = gl.getUniformLocation(prog, 'uShift');
+
+    // Texture from <video>
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    // Matrices helpers
+    function identity() {
+      return [1,0,0,0,
+              0,1,0,0,
+              0,0,1,0,
+              0,0,0,1];
+    }
+    function multiply(a,b) {
+      const out = new Float32Array(16);
+      for (let i=0;i<4;i++) {
+        for (let j=0;j<4;j++) {
+          out[i*4+j] = a[i*4+0]*b[0*4+j] + a[i*4+1]*b[1*4+j] + a[i*4+2]*b[2*4+j] + a[i*4+3]*b[3*4+j];
+        }
+      }
+      return Array.from(out);
+    }
+    function translation(x,y,z) {
+      const m = identity(); m[12]=x; m[13]=y; m[14]=z; return m;
+    }
+    function rotationX(deg) {
+      const r = deg*Math.PI/180; const c=Math.cos(r), s=Math.sin(r);
+      return [1,0,0,0, 0,c,s,0, 0,-s,c,0, 0,0,0,1];
+    }
+    function rotationY(deg) {
+      const r = deg*Math.PI/180; const c=Math.cos(r), s=Math.sin(r);
+      return [c,0,-s,0, 0,1,0,0, s,0,c,0, 0,0,0,1];
+    }
+    function rotationZ(deg) {
+      const r = deg*Math.PI/180; const c=Math.cos(r), s=Math.sin(r);
+      return [c,s,0,0, -s,c,0,0, 0,0,1,0, 0,0,0,1];
+    }
+    function scale(x,y,z) {
+      return [x,0,0,0, 0,y,0,0, 0,0,z,0, 0,0,0,1];
+    }
+
+    let baseTransform = identity();
+
+    function aspectForLayout() {
+      const vw = video.videoWidth || 1920;
+      const vh = video.videoHeight || 1080;
+      if (layoutSel.value === 'sbs') {
+        return (vw/2) / vh;
+      } else if (layoutSel.value === 'ou') {
+        return vw / (vh/2);
+      } else {
+        return vw / vh;
+      }
+    }
+
+    // Non-XR fallback: draw nothing; canvas just black. 2D fullscreen uses native <video>
+    function resizeCanvas() {
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      canvas.width = Math.floor(canvas.clientWidth * dpr);
+      canvas.height = Math.floor(canvas.clientHeight * dpr);
+      gl.viewport(0,0,canvas.width, canvas.height);
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Basic non-XR render loop to preview aspect via WebGL quad
+    function render2D() {
+      gl.clearColor(0,0,0,1);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+      const proj = identity();
+      const view = identity();
+      const asp = aspectForLayout();
+      const w = 1.8; // arbitrary preview width in NDC-ish units
+      const h = w / asp;
+      const model = multiply(scale(w,h,1), identity());
+
+      gl.uniformMatrix4fv(uProj, false, new Float32Array(proj));
+      gl.uniformMatrix4fv(uView, false, new Float32Array(view));
+      gl.uniformMatrix4fv(uModel, false, new Float32Array(model));
+
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.uniform1i(uTex, 0);
+      gl.uniform1i(uEye, 0);
+      gl.uniform1i(uLayout, layoutSel.value === 'mono' ? 0 : (layoutSel.value === 'sbs' ? 1 : 2));
+      gl.uniform1f(uShift, parseFloat(shiftIn.value)/100.0);
+      gl.uniform1i(uSwap, swapEyes.checked ? 1 : 0);
+
+      // Update texture from video if ready
+      try {
+        if (video.readyState >= 2) {
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+        }
+      } catch(e){}
+
+      gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+      requestAnimationFrame(render2D);
+    }
+    requestAnimationFrame(render2D);
+
+    // ---- WebXR ----
+    const enterBtn = document.getElementById('enterVR');
+    enterBtn.addEventListener('click', async () => {
+      if (!navigator.xr) { st('WebXR not available in this browser.'); return; }
+      try {
+        const supported = await navigator.xr.isSessionSupported('immersive-vr');
+        if (!supported) { st('immersive-vr session not supported.'); return; }
+        await gl.makeXRCompatible();
+        xrSession = await navigator.xr.requestSession('immersive-vr', { requiredFeatures: ['local'] });
+        xrLayer = new XRWebGLLayer(xrSession, gl);
+        xrSession.updateRenderState({ baseLayer: xrLayer });
+        xrRefSpace = await xrSession.requestReferenceSpace('local');
+        xrSession.addEventListener('end', () => { xrSession = null; st('Exited VR.'); });
+        st('Entered VR.');
+        xrSession.requestAnimationFrame(onXRFrame);
+      } catch (e) {
+        console.warn(e); st('Failed to start VR session. Requires HTTPS and user gesture.');
+      }
+    });
+
+    function onXRFrame(t, frame) {
+      const session = frame.session;
+      session.requestAnimationFrame(onXRFrame);
+      const pose = frame.getViewerPose(xrRefSpace);
+      if (!pose) return;
+
+      gl.bindFramebuffer(gl.FRAMEBUFFER, xrLayer.framebuffer);
+      gl.clearColor(0,0,0,1);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+      // Compute model from UI: place quad in front of user at distance
+      const dist = parseFloat(distanceIn.value);
+      const widthM = parseFloat(widthIn.value);
+      const asp = aspectForLayout();
+      const heightM = widthM / asp;
+      let model = identity();
+      model = multiply(translation(0, 0, -dist), model);
+      model = multiply(rotationX(parseFloat(tiltIn.value)), model);
+      model = multiply(rotationY(parseFloat(yawIn.value)), model);
+      model = multiply(rotationZ(parseFloat(rollIn.value)), model);
+      model = multiply(scale(widthM, heightM, 1), model);
+      model = multiply(baseTransform, model);
+
+      // Update video texture
+      try {
+        if (video.readyState >= 2) {
+          gl.bindTexture(gl.TEXTURE_2D, tex);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+        }
+      } catch(e){}
+
+      gl.useProgram(prog);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.uniform1i(uTex, 0);
+      gl.uniform1i(uLayout, layoutSel.value === 'mono' ? 0 : (layoutSel.value === 'sbs' ? 1 : 2));
+      gl.uniform1f(uShift, parseFloat(shiftIn.value)/100.0);
+      gl.uniform1i(uSwap, swapEyes.checked ? 1 : 0);
+
+      for (const view of pose.views) {
+        const vp = xrLayer.getViewport(view);
+        gl.viewport(vp.x, vp.y, vp.width, vp.height);
+        gl.uniformMatrix4fv(uProj, false, view.projectionMatrix);
+        gl.uniformMatrix4fv(uView, false, view.transform.inverse.matrix);
+        gl.uniformMatrix4fv(uModel, false, new Float32Array(model));
+
+        // Eye index: views[0] is typically left, but check view.eye if available
+        const eyeIndex = (view.eye === 'right') ? 1 : 0;
+        gl.uniform1i(uEye, eyeIndex);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+        gl.vertexAttribPointer(aPos, 3, gl.FLOAT, false, 0, 0);
+        gl.bindBuffer(gl.ARRAY_BUFFER, uvBuf);
+        gl.vertexAttribPointer(aUV, 2, gl.FLOAT, false, 0, 0);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf);
+        gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+      }
+    }
+
+    // Helpful: when video metadata loads, show dimensions for aspect calc
+    video.addEventListener('loadedmetadata', () => {
+      st(`Video ${video.videoWidth}x${video.videoHeight} loaded. Choose layout (Mono/SBS/OU).`);
+    });
+  </script>
+</body>
+</html>
