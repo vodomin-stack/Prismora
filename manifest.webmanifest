@@ -1,6 +1,6 @@
 {
   "name": "XR 3D Movie Player",
-  "short_name": "Prismora",
+  "short_name": "XR3D",
   "display": "standalone",
   "start_url": "./index.html",
   "scope": "./",

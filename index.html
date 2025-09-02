@@ -1,274 +1,500 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>XR 3D Movie Player — v2.1</title>
-<link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#003865" />
-<style>
-:root{--bg:#0b0f17;--fg:#e5e7eb;--muted:#9ca3af;--accent:#78BE21;--accent2:#003865;}
-*{box-sizing:border-box}
-body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;background:var(--bg);color:var(--fg);display:grid;grid-template-rows:auto 1fr auto auto;min-height:100vh}
-header{padding:.6rem 1rem;display:flex;align-items:center;gap:.75rem;border-bottom:1px solid #111827;background:linear-gradient(180deg,#0f1623,#0b0f17);position:sticky;top:0;z-index:10}
-.pill{display:inline-flex;align-items:center;gap:.5rem;padding:.4rem .6rem;background:#0f172a;border:1px solid #1f2937;border-radius:999px}
-main{padding:.5rem 1rem 1rem;position:relative}
-#canvas{width:100%;height:calc(100vh - 160px);display:block;background:#000;border-radius:.75rem;border:1px solid #111827}
-.status{font-size:.9rem;color:var(--muted);margin:.5rem 1rem}
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>XR 3D Movie Player</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#003865" />
+  <style>
+    :root { --bg:#0b0f17; --fg:#e5e7eb; --muted:#9ca3af; --accent:#78BE21; --accent2:#003865; }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;background:var(--bg);color:var(--fg);display:grid;grid-template-rows:auto 1fr;min-height:100vh}
+    header{padding:.75rem 1rem;display:flex;align-items:center;gap:.75rem;border-bottom:1px solid #111827;background:linear-gradient(180deg,#0f1623,#0b0f17);position:sticky;top:0;z-index:10}
+    h1{font-size:1rem;margin:0;letter-spacing:.02em}
+    .pill{display:inline-flex;align-items:center;gap:.5rem;padding:.45rem .6rem;background:#0f172a;border:1px solid #1f2937;border-radius:999px}
+    .controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.5rem .75rem;margin-left:auto;align-items:center}
+    .controls label{display:grid;gap:.25rem;font-size:.8rem;color:var(--muted)}
+    .controls input[type="range"]{width:100%}
+    .controls input[type="url"], .controls select, .controls input[type="file"]{width:100%;padding:.35rem .5rem;background:#0b1220;color:var(--fg);border:1px solid #1f2937;border-radius:.5rem}
+    .controls button{padding:.5rem .8rem;border:1px solid #1f2937;background:#0d1b2a;color:var(--fg);border-radius:.6rem;cursor:pointer}
+    .controls button.primary{background:var(--accent2);border-color:#07243c}
+    main{padding:.5rem 1rem 1rem;position:relative}
+    #canvas{width:100%;height:calc(100vh - 130px);display:block;background:#000;border-radius:.75rem;border:1px solid #111827}
+    .status{font-size:.9rem;color:var(--muted);margin-top:.5rem}
 
-/* Overlay UI */
-.overlay-toggle{position:absolute;right:16px;bottom:16px;z-index:20;background:rgba(0,0,0,.6);border:1px solid #1f2937;color:#e5e7eb;border-radius:999px;padding:10px 12px;display:inline-flex;align-items:center;justify-content:center;user-select:none;cursor:pointer}
-.overlay-toggle:hover{background:rgba(0,0,0,.75)}
-.overlay-panel{position:absolute;right:16px;bottom:70px;width:min(420px,95vw);max-height:60vh;overflow:auto;z-index:25;background:rgba(15,23,42,.92);border:1px solid #1f2937;border-radius:12px;backdrop-filter:blur(4px);padding:12px;display:none}
-.overlay-panel.show{display:block}
-.overlay-grid{display:grid;grid-template-columns:repeat(2,minmax(160px,1fr));gap:8px 12px}
-.olabel{font-size:12px;color:#9ca3af}
-.overlay-panel input[type="range"],.overlay-panel select,.overlay-panel input[type="url"]{width:100%;padding:6px 8px;background:#0b1220;color:#e5e7eb;border:1px solid #1f2937;border-radius:8px;font-size:13px}
-.overlay-row{grid-column:1/-1;display:grid;gap:4px}
-.overlay-buttons{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
-.btn{padding:8px;border:1px solid #1f2937;background:#0d1b2a;color:#e5e7eb;border-radius:8px;cursor:pointer;text-align:center;user-select:none}
-.btn.primary{background:#003865}.btn.warn{background:#3b0d0d}
-
-/* Footer + notes */
-.footer{padding:.5rem 1rem;color:#9ca3af;font-size:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:center;border-top:1px solid #1f2937}
-.badge{background:#0f172a;border:1px solid #1f2937;border-radius:999px;padding:2px 8px;color:#e5e7eb}
-details.release-notes{margin:6px 1rem 12px;background:rgba(255,255,255,.02);border:1px solid #1f2937;border-radius:8px;padding:8px 10px}
-details.release-notes summary{cursor:pointer;color:#e5e7eb;font-weight:600}
-details.release-notes ul{margin:6px 0 0 1.2rem}
-</style>
+    /* Overlay UI */
+    .overlay-toggle{position:absolute;right:16px;bottom:16px;z-index:20;background:rgba(0,0,0,.6);border:1px solid #1f2937;color:#e5e7eb;border-radius:999px;padding:10px 12px;display:inline-flex;align-items:center;justify-content:center;user-select:none;cursor:pointer}
+    .overlay-toggle:hover{background:rgba(0,0,0,.75)}
+    .overlay-panel{position:absolute;right:16px;bottom:70px;width:min(460px,95vw);max-height:65vh;overflow:auto;z-index:25;background:rgba(15,23,42,.92);border:1px solid #1f2937;border-radius:12px;backdrop-filter:blur(4px);padding:12px;display:none}
+    .overlay-panel.show{display:block}
+    .overlay-grid{display:grid;grid-template-columns:repeat(2,minmax(160px,1fr));gap:8px 12px}
+    .olabel{font-size:12px;color:#9ca3af}
+    .overlay-panel input[type="range"], .overlay-panel select, .overlay-panel input[type="url"], .overlay-panel input[type="file"]{width:100%;padding:6px 8px;background:#0b1220;color:#e5e7eb;border:1px solid #1f2937;border-radius:8px;font-size:13px}
+    .overlay-row{grid-column:1 / -1;display:grid;gap:4px}
+    .overlay-buttons{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+    .btn{padding:8px;border:1px solid #1f2937;background:#0d1b2a;color:#e5e7eb;border-radius:8px;cursor:pointer;text-align:center;user-select:none}
+    .btn.primary{background:#003865}
+    .btn.warn{background:#3b0d0d}
+  </style>
 </head>
 <body>
-<header><div class="pill"><strong>XR 3D Movie Player</strong></div></header>
-<main>
-  <canvas id="canvas" aria-label="WebXR canvas"></canvas>
-  <div class="status" id="status">Ready. Press ⚙️ (or 'O') for settings, Play → Enter VR.</div>
+  <header>
+    <div class="pill"><strong>XR 3D Movie Player</strong></div>
+    <div class="controls">
+      <label>Video URL
+        <input id="urlInput" type="url" placeholder="https://example.com/video.mp4 (SBS/OU)">
+      </label>
+      <label>Or choose file
+        <input id="fileInput" type="file" accept="video/*">
+      </label>
+      <label>Stereo layout
+        <select id="layout">
+          <option value="mono">Mono (2D)</option>
+          <option value="sbs">Side-by-Side (SBS)</option>
+          <option value="ou">Over-Under (OU)</option>
+        </select>
+      </label>
+      <label>Distance (m): <span id="distanceVal">1.6</span>
+        <input id="distance" type="range" min="0.5" max="4.0" value="1.6" step="0.1">
+      </label>
+      <label>Width (m): <span id="widthVal">3.0</span>
+        <input id="width" type="range" min="1.0" max="8.0" value="3.0" step="0.1">
+      </label>
+      <button id="loadBtn">Load</button>
+      <button id="playBtn">Play/Pause</button>
+      <button id="enterVR" class="primary">Enter VR</button>
+    </div>
+  </header>
+  <main>
+    <canvas id="canvas" aria-label="WebXR canvas"></canvas>
+    <div class="status" id="status">Ready. Tip: Choose file or paste URL, then Play → Enter VR. Use overlay ⚙️ for in-headset controls.</div>
 
-  <!-- Hidden video element -->
-  <video id="video" playsinline crossorigin="anonymous" style="display:none"></video>
+    <!-- Overlay UI -->
+    <div class="overlay-toggle" id="gearBtn" title="Settings (A / Trigger / O)">⚙️</div>
+    <div class="overlay-panel" id="overlay">
+      <div class="overlay-grid">
+        <div class="overlay-row">
+          <span class="olabel">Video URL</span>
+          <input id="olUrl" type="url" placeholder="https://example.com/video.mp4">
+        </div>
+        <div class="overlay-row">
+          <span class="olabel">Or choose a local file</span>
+          <input id="olFile" type="file" accept="video/*">
+        </div>
 
-  <!-- Overlay controls -->
-  <div class="overlay-toggle" id="gearBtn" title="Settings (O / Trigger)">⚙️</div>
-  <div class="overlay-panel" id="overlay">
-    <div class="overlay-grid">
-      <div class="overlay-row">
-        <span class="olabel">Video URL</span>
-        <input id="olUrl" type="url" placeholder="https://example.com/video.mp4 (use HTTPS)">
-      </div>
-      <div>
-        <span class="olabel">Stereo layout</span>
-        <select id="olLayout"><option value="mono">Mono</option><option value="sbs">SBS</option><option value="ou">OU</option></select>
-      </div>
-      <div>
-        <span class="olabel">Swap eyes</span>
-        <select id="olSwap"><option value="0">No</option><option value="1">Yes</option></select>
-      </div>
+        <div>
+          <span class="olabel">Stereo layout</span>
+          <select id="olLayout">
+            <option value="mono">Mono</option>
+            <option value="sbs">SBS</option>
+            <option value="ou">OU</option>
+          </select>
+        </div>
+        <div>
+          <span class="olabel">Swap eyes</span>
+          <select id="olSwap"><option value="0">No</option><option value="1">Yes</option></select>
+        </div>
+        <div>
+          <span class="olabel">Screen</span>
+          <select id="olScreen">
+            <option value="flat">Flat</option>
+            <option value="curved">Curved</option>
+          </select>
+        </div>
+        <div>
+          <span class="olabel">Curvature (°): <span id="olCurveV">60</span></span>
+          <input id="olCurve" type="range" min="10" max="120" value="60" step="5">
+        </div>
 
-      <div><span class="olabel">Distance (m): <span id="olDistV">1.6</span></span>
-        <input id="olDist" type="range" min="0.5" max="4.0" value="1.6" step="0.1"></div>
-      <div><span class="olabel">Width (m): <span id="olWidthV">3.0</span></span>
-        <input id="olWidth" type="range" min="1.0" max="8.0" value="3.0" step="0.1"></div>
-      <div><span class="olabel">Tilt X (°): <span id="olTiltV">0</span></span>
-        <input id="olTilt" type="range" min="-30" max="30" value="0" step="1"></div>
-      <div><span class="olabel">Yaw Y (°): <span id="olYawV">0</span></span>
-        <input id="olYaw" type="range" min="-45" max="45" value="0" step="1"></div>
-      <div><span class="olabel">Roll Z (°): <span id="olRollV">0</span></span>
-        <input id="olRoll" type="range" min="-20" max="20" value="0" step="1"></div>
-      <div><span class="olabel">Parallax Shift (%): <span id="olShiftV">0</span></span>
-        <input id="olShift" type="range" min="-15" max="15" value="0" step="0.5"></div>
+        <div>
+          <span class="olabel">Distance (m): <span id="olDistV">1.6</span></span>
+          <input id="olDist" type="range" min="0.5" max="4.0" value="1.6" step="0.1">
+        </div>
+        <div>
+          <span class="olabel">Width (m): <span id="olWidthV">3.0</span></span>
+          <input id="olWidth" type="range" min="1.0" max="8.0" value="3.0" step="0.1">
+        </div>
+        <div>
+          <span class="olabel">Tilt X (°): <span id="olTiltV">0</span></span>
+          <input id="olTilt" type="range" min="-30" max="30" value="0" step="1">
+        </div>
+        <div>
+          <span class="olabel">Yaw Y (°): <span id="olYawV">0</span></span>
+          <input id="olYaw" type="range" min="-45" max="45" value="0" step="1">
+        </div>
+        <div>
+          <span class="olabel">Roll Z (°): <span id="olRollV">0</span></span>
+          <input id="olRoll" type="range" min="-20" max="20" value="0" step="1">
+        </div>
+        <div>
+          <span class="olabel">Parallax Shift (%): <span id="olShiftV">0</span></span>
+          <input id="olShift" type="range" min="-15" max="15" value="0" step="0.5">
+        </div>
+        <div>
+          <span class="olabel">Per-eye X offset (%): <span id="olXOffV">0</span></span>
+          <input id="olXOff" type="range" min="-10" max="10" value="0" step="0.5">
+        </div>
+        <div>
+          <span class="olabel">Per-eye Y offset (%): <span id="olYOffV">0</span></span>
+          <input id="olYOff" type="range" min="-10" max="10" value="0" step="0.5">
+        </div>
+        <div>
+          <span class="olabel">Per-eye scale (%): <span id="olScaleV">100</span></span>
+          <input id="olScale" type="range" min="95" max="105" value="100" step="0.5">
+        </div>
 
-      <div><span class="olabel">Per-eye X offset (%): <span id="olXOffV">0</span></span>
-        <input id="olXOff" type="range" min="-10" max="10" value="0" step="0.5"></div>
-      <div><span class="olabel">Per-eye Y offset (%): <span id="olYOffV">0</span></span>
-        <input id="olYOff" type="range" min="-10" max="10" value="0" step="0.5"></div>
-      <div><span class="olabel">Per-eye scale (%): <span id="olScaleV">100</span></span>
-        <input id="olScale" type="range" min="95" max="105" value="100" step="0.5"></div>
-
-      <div class="overlay-row">
-        <span class="olabel">Audio</span>
-        <div class="overlay-grid">
-          <div><span class="olabel">Volume: <span id="olVolV">100</span></span>
-            <input id="olVol" type="range" min="0" max="100" value="100" step="1"></div>
-          <div>
-            <span class="olabel">Mute/Unmute</span>
-            <div class="btn" id="olMuteBtn">Toggle Mute</div>
-            <div class="olabel">A click is required once for audio.</div>
+        <div class="overlay-row">
+          <span class="olabel">Audio</span>
+          <div class="overlay-grid">
+            <div>
+              <span class="olabel">Volume: <span id="olVolV">100</span></span>
+              <input id="olVol" type="range" min="0" max="100" value="100" step="1">
+            </div>
+            <div>
+              <span class="olabel">Mute/Unmute</span>
+              <div class="btn" id="olMuteBtn">Toggle Mute</div>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="overlay-row overlay-buttons">
-        <div class="btn" id="olLoad">Load</div>
-        <div class="btn" id="olPlay">Play/Pause</div>
-        <div class="btn primary" id="olEnter">Enter VR</div>
-        <div class="btn" id="olReset">Recenter</div>
-        <div class="btn warn" id="olExit">Exit VR</div>
+        <div class="overlay-row overlay-buttons">
+          <div class="btn" id="olLoad">Load</div>
+          <div class="btn" id="olPlay">Play/Pause</div>
+          <div class="btn primary" id="olEnter">Enter VR</div>
+          <div class="btn" id="olReset">Recenter</div>
+          <div class="btn warn" id="olExit">Exit VR</div>
+        </div>
       </div>
     </div>
-  </div>
-</main>
+  </main>
 
-<div class="footer">
-  <span class="badge">Prismora</span>
-  <span>Version: v2.1</span>
-  <span>Build: 2025-09-02 19:23 UTC</span>
-</div>
-<details class="release-notes">
-  <summary>Release Notes</summary>
-  <ul>
-    <li><strong>v2.1</strong>: Added visible version footer and Release Notes; kept full v2 player.</li>
-    <li><strong>v2</strong> (since v1): In-canvas settings overlay (⚙️), audio controls, per-eye X/Y offsets and per-eye scale, best-effort controller mappings (trigger toggles overlay; some back buttons exit), Exit/Recenter buttons, shader updates, SW cache bump.</li>
-    <li><strong>v1</strong>: Initial WebXR player with Mono/SBS/OU, distance/width/tilt/yaw/roll, swap eyes, parallax shift.</li>
-  </ul>
-</details>
+  <video id="video" playsinline crossorigin="anonymous" style="display:none"></video>
 
-<script>
-if('serviceWorker' in navigator){ navigator.serviceWorker.register('./sw.js').catch(()=>{}); }
+  <script>
+    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./sw.js').catch(()=>{}); }
 
-const video=document.getElementById('video');
-const canvas=document.getElementById('canvas');
-const gl=canvas.getContext('webgl',{alpha:false,antialias:true});
-let xrSession=null,xrRefSpace=null,xrLayer=null;
-const st=(m)=>document.getElementById('status').textContent=m;
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const gl = canvas.getContext('webgl', { alpha: false, antialias: true });
+    let xrSession = null, xrRefSpace = null, xrLayer = null;
 
-const state={layout:'mono',swap:false,dist:1.6,width:3.0,tilt:0,yaw:0,roll:0,shift:0,perX:0,perY:0,perScale:1.0};
+    const st = (msg) => document.getElementById('status').textContent = msg;
 
-const gearBtn=document.getElementById('gearBtn'); const overlay=document.getElementById('overlay');
-function $(id){return document.getElementById(id);}
-function syncVals(){ $('olDistV').textContent=state.dist; $('olWidthV').textContent=state.width; $('olTiltV').textContent=state.tilt; $('olYawV').textContent=state.yaw; $('olRollV').textContent=state.roll; $('olShiftV').textContent=state.shift; $('olXOffV').textContent=(state.perX*200).toFixed(1); $('olYOffV').textContent=(state.perY*200).toFixed(1); $('olScaleV').textContent=(state.perScale*100).toFixed(1); $('olVolV').textContent=Math.round(video.volume*100); $('olLayout').value=state.layout; $('olSwap').value=state.swap?'1':'0'; }
-gearBtn.addEventListener('click',()=>{ overlay.classList.toggle('show'); syncVals(); });
-document.addEventListener('keydown',(e)=>{ if(e.key.toLowerCase()==='o'){ overlay.classList.toggle('show'); syncVals(); } if(e.key==='Escape'&&xrSession){ xrSession.end(); } });
-$('olLayout').addEventListener('change',()=>{ state.layout=$('olLayout').value; });
-$('olSwap').addEventListener('change',()=>{ state.swap=$('olSwap').value==='1'; });
-['olDist','olWidth','olTilt','olYaw','olRoll','olShift'].forEach(id=>{ $(id).addEventListener('input',()=>{ const v=parseFloat($(id).value); if(id==='olDist')state.dist=v; if(id==='olWidth')state.width=v; if(id==='olTilt')state.tilt=v; if(id==='olYaw')state.yaw=v; if(id==='olRoll')state.roll=v; if(id==='olShift')state.shift=v; syncVals(); }); });
-$('olXOff').addEventListener('input',()=>{ state.perX=parseFloat($('olXOff').value)/100.0/2.0; syncVals(); });
-$('olYOff').addEventListener('input',()=>{ state.perY=parseFloat($('olYOff').value)/100.0/2.0; syncVals(); });
-$('olScale').addEventListener('input',()=>{ state.perScale=parseFloat($('olScale').value)/100.0; syncVals(); });
-$('olVol').addEventListener('input',()=>{ video.volume=parseFloat($('olVol').value)/100.0; syncVals(); });
-$('olMuteBtn').addEventListener('click',()=>{ video.muted=!video.muted; try{ if(!video.paused) video.play(); }catch(e){} });
-$('olLoad').addEventListener('click',()=>{ const url=$('olUrl').value.trim(); if(url){ video.src=url; video.load(); st('Loaded URL. Click Play, then Enter VR.'); } else { st('Enter a video URL or use local file picker.'); } });
-$('olPlay').addEventListener('click',async()=>{ try{ if(video.paused){ video.muted=true; await video.play(); st('Playing (muted). Use overlay to unmute.'); } else { video.pause(); st('Paused.'); } }catch(e){ st('Playback failed (codec/DRM?). Try H.264 MP4/HLS.'); } });
-$('olEnter').addEventListener('click',()=>enterVR());
-$('olReset').addEventListener('click',()=>{ baseTransform=identity(); st('Recentered.'); });
-$('olExit').addEventListener('click',()=>{ if(xrSession) xrSession.end(); });
+    // Header controls
+    const urlInput = document.getElementById('urlInput');
+    const fileInput = document.getElementById('fileInput');
+    const layoutSel = document.getElementById('layout');
+    const distanceIn = document.getElementById('distance');
+    const widthIn = document.getElementById('width');
+    const distanceVal = document.getElementById('distanceVal');
+    const widthVal = document.getElementById('widthVal');
 
-function resizeCanvas(){ const dpr=Math.min(2,window.devicePixelRatio||1); canvas.width=Math.floor(canvas.clientWidth*dpr); canvas.height=Math.floor(canvas.clientHeight*dpr); gl.viewport(0,0,canvas.width,canvas.height); }
-window.addEventListener('resize',resizeCanvas); resizeCanvas();
+    distanceIn.addEventListener('input', ()=> distanceVal.textContent = distanceIn.value);
+    widthIn.addEventListener('input', ()=> widthVal.textContent = widthIn.value);
 
-function compile(gl,type,src){ const sh=gl.createShader(type); gl.shaderSource(sh,src); gl.compileShader(sh); return sh; }
-const vsSrc='attribute vec3 aPos;attribute vec2 aUV;uniform mat4 uProj;uniform mat4 uView;uniform mat4 uModel;varying vec2 vUV;void main(){vUV=aUV;gl_Position=uProj*uView*uModel*vec4(aPos,1.0);}';
-const fsSrc='precision mediump float;varying vec2 vUV;uniform sampler2D uTex;uniform int uEye;uniform int uLayout;uniform bool uSwap;uniform float uShift;uniform vec2 uPerEyeOffset;uniform float uPerEyeScale;void main(){vec2 uv=vUV;int eye=uEye;if(uSwap){eye=(uEye==0)?1:0;}if(uLayout==1){float halfX=0.5;float x=uv.x*halfX+((eye==0)?0.0:halfX);float s=uShift*halfX;x+=(eye==0?-s:s);uv=vec2(x,uv.y);}else if(uLayout==2){float halfY=0.5;float y=uv.y*halfY+((eye==0)?0.0:halfY);float s=uShift*halfY;y+=(eye==0?-s:s);uv=vec2(uv.x,y);}vec2 center=vec2(0.5,0.5);vec2 offs=(eye==0?-uPerEyeOffset:uPerEyeOffset);uv=(uv-center)/uPerEyeScale+center+offs;gl_FragColor=texture2D(uTex,uv);}';
-const vs=compile(gl,gl.VERTEX_SHADER,vsSrc); const fs=compile(gl,gl.FRAGMENT_SHADER,fsSrc);
-const prog=gl.createProgram(); gl.attachShader(prog,vs); gl.attachShader(prog,fs); gl.linkProgram(prog); gl.useProgram(prog);
+    document.getElementById('loadBtn').addEventListener('click', ()=>{
+      if (urlInput.value) { video.src = urlInput.value; video.load(); st('Loaded URL. Click Play, then Enter VR.'); }
+      else { st('Enter a video URL or choose a file.'); }
+    });
+    fileInput.addEventListener('change', ()=>{
+      const f = fileInput.files && fileInput.files[0];
+      if (f) { const u = URL.createObjectURL(f); video.src = u; video.load(); st('Loaded local file. Click Play, then Enter VR.'); }
+    });
+    document.getElementById('playBtn').addEventListener('click', async ()=>{
+      try {
+        if (video.paused) { video.muted = true; await video.play(); st('Playing (muted). Use overlay to unmute.'); }
+        else { video.pause(); st('Paused.'); }
+      } catch(e){ st('Playback failed. Some formats need native app/codec.'); }
+    });
+    document.getElementById('enterVR').addEventListener('click', startXR);
 
-const posBuf=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,posBuf);
-gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-0.5,-0.5,0, 0.5,-0.5,0, 0.5,0.5,0, -0.5,0.5,0]),gl.STATIC_DRAW);
-const uvBuf=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,uvBuf);
-gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([0,1, 1,1, 1,0, 0,0]),gl.STATIC_DRAW);
-const idxBuf=gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,idxBuf);
-gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array([0,1,2,0,2,3]),gl.STATIC_DRAW);
+    // Overlay elements
+    const gearBtn = document.getElementById('gearBtn');
+    const overlay = document.getElementById('overlay');
+    const ol = (id)=>document.getElementById(id);
 
-const aPos=gl.getAttribLocation(prog,'aPos'); gl.bindBuffer(gl.ARRAY_BUFFER,posBuf); gl.enableVertexAttribArray(aPos); gl.vertexAttribPointer(aPos,3,gl.FLOAT,false,0,0);
-const aUV=gl.getAttribLocation(prog,'aUV'); gl.bindBuffer(gl.ARRAY_BUFFER,uvBuf); gl.enableVertexAttribArray(aUV); gl.vertexAttribPointer(aUV,2,gl.FLOAT,false,0,0);
-
-const uProj=gl.getUniformLocation(prog,'uProj'),uView=gl.getUniformLocation(prog,'uView'),uModel=gl.getUniformLocation(prog,'uModel'),uTex=gl.getUniformLocation(prog,'uTex'),uEye=gl.getUniformLocation(prog,'uEye'),uLayout=gl.getUniformLocation(prog,'uLayout'),uSwap=gl.getUniformLocation(prog,'uSwap'),uShift=gl.getUniformLocation(prog,'uShift'),uPerEyeOffset=gl.getUniformLocation(prog,'uPerEyeOffset'),uPerEyeScale=gl.getUniformLocation(prog,'uPerEyeScale');
-
-const tex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,tex);
-gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
-
-function identity(){return [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];}
-function multiply(a,b){const o=new Float32Array(16);for(let i=0;i<4;i++){for(let j=0;j<4;j++){o[i*4+j]=a[i*4+0]*b[0*4+j]+a[i*4+1]*b[1*4+j]+a[i*4+2]*b[2*4+j]+a[i*4+3]*b[3*4+j];}}return Array.from(o);}
-function translation(x,y,z){const m=identity(); m[12]=x;m[13]=y;m[14]=z; return m;}
-function rotationX(d){const r=d*Math.PI/180,c=Math.cos(r),s=Math.sin(r);return [1,0,0,0, 0,c,s,0, 0,-s,c,0, 0,0,0,1];}
-function rotationY(d){const r=d*Math.PI/180,c=Math.cos(r),s=Math.sin(r);return [c,0,-s,0, 0,1,0,0, s,0,c,0, 0,0,0,1];}
-function rotationZ(d){const r=d*Math.PI/180,c=Math.cos(r),s=Math.sin(r);return [c,s,0,0, -s,c,0,0, 0,0,1,0, 0,0,0,1];}
-function scale(x,y,z){return [x,0,0,0, 0,y,0,0, 0,0,z,0, 0,0,0,1];}
-let baseTransform=identity();
-
-function aspectForLayout(){ const vw=video.videoWidth||1920, vh=video.videoHeight||1080; if(state.layout==='sbs')return (vw/2)/vh; if(state.layout==='ou')return vw/(vh/2); return vw/vh; }
-
-function preview2D(){
-  gl.clearColor(0,0,0,1); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
-  const proj=identity(), view=identity();
-  const asp=aspectForLayout(); const w=1.8, h=w/asp; const model=multiply(scale(w,h,1), identity());
-  gl.uniformMatrix4fv(uProj,false,new Float32Array(proj));
-  gl.uniformMatrix4fv(uView,false,new Float32Array(view));
-  gl.uniformMatrix4fv(uModel,false,new Float32Array(model));
-  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,tex); gl.uniform1i(uTex,0);
-  gl.uniform1i(uEye,0); gl.uniform1i(uLayout, state.layout==='mono'?0:(state.layout==='sbs'?1:2));
-  gl.uniform1f(uShift, state.shift/100.0); gl.uniform1i(uSwap, state.swap?1:0);
-  gl.uniform2f(uPerEyeOffset, state.perX, state.perY); gl.uniform1f(uPerEyeScale, state.perScale);
-  try{ if(video.readyState>=2){ gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,video); } }catch(e){}
-  gl.drawElements(gl.TRIANGLES,6,gl.UNSIGNED_SHORT,0);
-  requestAnimationFrame(preview2D);
-}
-requestAnimationFrame(preview2D);
-
-async function enterVR(){
-  if(!navigator.xr){ st('WebXR not available.'); return; }
-  const ok=await navigator.xr.isSessionSupported('immersive-vr');
-  if(!ok){ st('immersive-vr not supported.'); return; }
-  try{
-    await gl.makeXRCompatible();
-    xrSession=await navigator.xr.requestSession('immersive-vr',{requiredFeatures:['local']});
-    xrLayer=new XRWebGLLayer(xrSession, gl);
-    xrSession.updateRenderState({ baseLayer:xrLayer });
-    xrRefSpace=await xrSession.requestReferenceSpace('local');
-    xrSession.addEventListener('end',()=>{ xrSession=null; st('Exited VR.'); });
-    st('Entered VR.');
-    xrSession.requestAnimationFrame(onXRFrame);
-  }catch(e){ st('Failed to start VR (needs HTTPS + user click).'); }
-}
-
-function pollXRInputs(){
-  if(!xrSession) return;
-  for(const src of xrSession.inputSources){
-    if(!src.gamepad) continue;
-    const gp=src.gamepad;
-    if(!pollXRInputs.prev) pollXRInputs.prev=Array(gp.buttons.length).fill(false);
-    for(let i=0;i<gp.buttons.length;i++){ const pressed=gp.buttons[i].pressed;
-      if(pressed && !pollXRInputs.prev[i]){ if(i===0||i===1){ overlay.classList.toggle('show'); syncVals(); } if(i===3||i===4){ if(xrSession) xrSession.end(); } }
-      pollXRInputs.prev[i]=pressed;
+    function setOverlayVals(){
+      ol('olDistV').textContent = distanceIn.value;
+      ol('olWidthV').textContent = widthIn.value;
+      ol('olTiltV').textContent = ol('olTilt').value;
+      ol('olYawV').textContent = ol('olYaw').value;
+      ol('olRollV').textContent = ol('olRoll').value;
+      ol('olShiftV').textContent = ol('olShift').value;
+      ol('olVolV').textContent = Math.round(video.volume*100);
+      ol('olXOffV').textContent = ol('olXOff').value;
+      ol('olYOffV').textContent = ol('olYOff').value;
+      ol('olScaleV').textContent = ol('olScale').value;
+      ol('olCurveV').textContent = ol('olCurve').value;
     }
-  }
-}
 
-function onXRFrame(t, frame){
-  const session=frame.session; session.requestAnimationFrame(onXRFrame);
-  const pose=frame.getViewerPose(xrRefSpace); if(!pose) return;
-  gl.bindFramebuffer(gl.FRAMEBUFFER, xrLayer.framebuffer);
-  gl.clearColor(0,0,0,1); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+    gearBtn.addEventListener('click', ()=>{ overlay.classList.toggle('show'); setOverlayVals(); });
+    document.addEventListener('keydown', (e)=>{
+      if (e.key.toLowerCase() === 'o') { overlay.classList.toggle('show'); setOverlayVals(); }
+      if (e.key === 'Escape' && xrSession) { xrSession.end(); }
+    });
 
-  const asp=aspectForLayout(); const widthM=state.width, heightM=widthM/asp;
-  let model=identity();
-  model=multiply(translation(0,0,-state.dist), model);
-  model=multiply(rotationX(state.tilt), model);
-  model=multiply(rotationY(state.yaw), model);
-  model=multiply(rotationZ(state.roll), model);
-  model=multiply(scale(widthM,heightM,1), model);
-  model=multiply(baseTransform, model);
+    // Mirror overlay <-> header
+    ol('olLayout').addEventListener('change', ()=>{ layoutSel.value = ol('olLayout').value; });
+    ol('olDist').addEventListener('input', ()=>{ distanceIn.value = ol('olDist').value; setOverlayVals(); });
+    ol('olWidth').addEventListener('input', ()=>{ widthIn.value = ol('olWidth').value; setOverlayVals(); });
 
-  try{ if(video.readyState>=2){ gl.bindTexture(gl.TEXTURE_2D,tex); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,video); } }catch(e){}
-  gl.useProgram(prog);
-  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,tex); gl.uniform1i(uTex,0);
-  gl.uniform1i(uLayout, state.layout==='mono'?0:(state.layout==='sbs'?1:2));
-  gl.uniform1f(uShift, state.shift/100.0); gl.uniform1i(uSwap, state.swap?1:0);
-  gl.uniform2f(uPerEyeOffset, state.perX, state.perY); gl.uniform1f(uPerEyeScale, state.perScale);
+    // Overlay file picker
+    ol('olFile').addEventListener('change', ()=>{
+      const f = ol('olFile').files && ol('olFile').files[0];
+      if (f) { const u = URL.createObjectURL(f); video.src = u; video.load(); st('Loaded local file from overlay. Click Play, then Enter VR.'); }
+    });
 
-  for(const view of pose.views){
-    const vp=xrLayer.getViewport(view); gl.viewport(vp.x,vp.y,vp.width,vp.height);
-    gl.uniformMatrix4fv(uProj,false,view.projectionMatrix);
-    gl.uniformMatrix4fv(uView,false,view.transform.inverse.matrix);
-    gl.uniformMatrix4fv(uModel,false,new Float32Array(model));
-    const eyeIndex=(view.eye==='right')?1:0; gl.uniform1i(uEye, eyeIndex);
-    gl.bindBuffer(gl.ARRAY_BUFFER,posBuf); gl.vertexAttribPointer(aPos,3,gl.FLOAT,false,0,0);
-    gl.bindBuffer(gl.ARRAY_BUFFER,uvBuf); gl.vertexAttribPointer(aUV,2,gl.FLOAT,false,0,0);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,idxBuf);
-    gl.drawElements(gl.TRIANGLES,6,gl.UNSIGNED_SHORT,0);
-  }
-  pollXRInputs();
-}
+    // Audio
+    ol('olVol').addEventListener('input', ()=>{ video.volume = parseFloat(ol('olVol').value)/100.0; setOverlayVals(); });
+    ol('olMuteBtn').addEventListener('click', ()=>{ video.muted = !video.muted; if (!video.paused) video.play(); });
 
-video.addEventListener('loadedmetadata',()=>{ st(`Video ${video.videoWidth}x${video.videoHeight} loaded. Choose layout (Mono/SBS/OU).`); });
-</script>
+    // Buttons
+    ol('olLoad').addEventListener('click', ()=>{ if (ol('olUrl').value) urlInput.value = ol('olUrl').value; document.getElementById('loadBtn').click(); });
+    ol('olPlay').addEventListener('click', ()=> document.getElementById('playBtn').click());
+    ol('olEnter').addEventListener('click', ()=> startXR());
+    ol('olReset').addEventListener('click', ()=>{ baseTransform = identity(); st('Recentered.'); });
+    ol('olExit').addEventListener('click', ()=>{ if (xrSession) xrSession.end(); });
+
+    // Alignment controls
+    const swapEyes = document.createElement('input'); swapEyes.type='checkbox'; // used by shader logic
+    ol('olSwap').addEventListener('change', ()=> { swapEyes.checked = (ol('olSwap').value==='1'); });
+
+    let perEyeX=0, perEyeY=0, perEyeScale=1.0;
+    ol('olXOff').addEventListener('input', ()=>{ perEyeX = parseFloat(ol('olXOff').value)/100/2; setOverlayVals(); });
+    ol('olYOff').addEventListener('input', ()=>{ perEyeY = parseFloat(ol('olYOff').value)/100/2; setOverlayVals(); });
+    ol('olScale').addEventListener('input', ()=>{ perEyeScale = parseFloat(ol('olScale').value)/100; setOverlayVals(); });
+
+    // Curved screen state
+    let screenMode = 'flat';
+    let curveDeg = 60;
+    let curvedMesh = { posBuf:null, uvBuf:null, idxBuf:null, count:0 };
+    let curvedDirty = true;
+    ol('olScreen').addEventListener('change', ()=>{ screenMode = ol('olScreen').value; curvedDirty = true; });
+    ol('olCurve').addEventListener('input', ()=>{ curveDeg = parseFloat(ol('olCurve').value); setOverlayVals(); if (screenMode==='curved') curvedDirty = true; });
+
+    // Core WebGL program
+    const vsSrc = `attribute vec3 aPos; attribute vec2 aUV; uniform mat4 uProj,uView,uModel; varying vec2 vUV; void main(){ vUV=aUV; gl_Position=uProj*uView*uModel*vec4(aPos,1.0); }`;
+    const fsSrc = `precision mediump float; varying vec2 vUV; uniform sampler2D uTex; uniform int uEye; uniform int uLayout; uniform bool uSwap; uniform float uShift; uniform vec2 uPerEyeOffset; uniform float uPerEyeScale; void main(){ vec2 uv=vUV; int eye=uEye; if(uSwap){ eye=(uEye==0)?1:0; } if(uLayout==1){ float halfX=0.5; float x=uv.x*halfX + (eye==0?0.0:halfX); float sh=uShift*halfX; x+=(eye==0?-sh:sh); uv=vec2(x,uv.y); } else if(uLayout==2){ float halfY=0.5; float y=uv.y*halfY + (eye==0?0.0:halfY); float sh=uShift*halfY; y+=(eye==0?-sh:sh); uv=vec2(uv.x,y); } vec2 center=vec2(0.5,0.5); vec2 offs=(eye==0?-uPerEyeOffset:uPerEyeOffset); uv=(uv-center)/uPerEyeScale + center + offs; gl_FragColor=texture2D(uTex, uv); }`;
+
+    function compile(gl, type, src){ const s=gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
+    const vs = compile(gl, gl.VERTEX_SHADER, vsSrc);
+    const fs = compile(gl, gl.FRAGMENT_SHADER, fsSrc);
+    const prog = gl.createProgram(); gl.attachShader(prog,vs); gl.attachShader(prog,fs); gl.linkProgram(prog);
+    if(!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+    gl.useProgram(prog);
+
+    const aPos = gl.getAttribLocation(prog,'aPos');
+    const aUV  = gl.getAttribLocation(prog,'aUV');
+    const uProj= gl.getUniformLocation(prog,'uProj');
+    const uView= gl.getUniformLocation(prog,'uView');
+    const uModel=gl.getUniformLocation(prog,'uModel');
+    const uTex = gl.getUniformLocation(prog,'uTex');
+    const uEye = gl.getUniformLocation(prog,'uEye');
+    const uLayout = gl.getUniformLocation(prog,'uLayout');
+    const uSwap = gl.getUniformLocation(prog,'uSwap');
+    const uShift = gl.getUniformLocation(prog,'uShift');
+    const uPerEyeOffset = gl.getUniformLocation(prog,'uPerEyeOffset');
+    const uPerEyeScale  = gl.getUniformLocation(prog,'uPerEyeScale');
+
+    // Flat quad buffers
+    const posBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-0.5,-0.5,0, 0.5,-0.5,0, 0.5,0.5,0, -0.5,0.5,0]), gl.STATIC_DRAW);
+    const uvBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, uvBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0,1, 1,1, 1,0, 0,0]), gl.STATIC_DRAW);
+    const idxBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array([0,1,2, 0,2,3]), gl.STATIC_DRAW);
+
+    // Curved mesh (filled on demand)
+    function rebuildCurvedMesh(){
+      const dist = parseFloat(distanceIn.value);
+      const widthM = parseFloat(widthIn.value);
+      const asp = aspectForLayout();
+      const heightM = widthM / asp;
+      const theta = Math.max(10, Math.min(120, curveDeg)) * Math.PI/180;
+      const R = widthM / theta;
+      const NX=64, NY=16;
+      const positions=[], uvs=[], indices=[];
+      for(let iy=0; iy<=NY; iy++){
+        const v = iy/NY; const y = (v-0.5)*heightM;
+        for(let ix=0; ix<=NX; ix++){
+          const u = ix/NX; const phi = (u-0.5)*theta;
+          const x = R*Math.sin(phi);
+          const z = -dist + R*(Math.cos(phi)-1.0);
+          positions.push(x,y,z); uvs.push(u,1.0-v);
+        }
+      }
+      for(let iy=0; iy<NY; iy++){
+        for(let ix=0; ix<NX; ix++){
+          const a=iy*(NX+1)+ix, b=a+1, c=a+(NX+1), d=c+1;
+          indices.push(a,b,d, a,d,c);
+        }
+      }
+      if(!curvedMesh.posBuf){ curvedMesh.posBuf=gl.createBuffer(); curvedMesh.uvBuf=gl.createBuffer(); curvedMesh.idxBuf=gl.createBuffer(); }
+      gl.bindBuffer(gl.ARRAY_BUFFER, curvedMesh.posBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+      gl.bindBuffer(gl.ARRAY_BUFFER, curvedMesh.uvBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uvs), gl.STATIC_DRAW);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, curvedMesh.idxBuf);
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+      curvedMesh.count = indices.length;
+      curvedDirty=false;
+    }
+
+    // Texture
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    // Matrices helpers
+    function identity(){ return [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]; }
+    function multiply(a,b){ const o=new Float32Array(16); for(let i=0;i<4;i++){ for(let j=0;j<4;j++){ o[i*4+j]=a[i*4+0]*b[0*4+j]+a[i*4+1]*b[1*4+j]+a[i*4+2]*b[2*4+j]+a[i*4+3]*b[3*4+j]; } } return Array.from(o); }
+    function translation(x,y,z){ const m=identity(); m[12]=x; m[13]=y; m[14]=z; return m; }
+    function rotationX(d){ const r=d*Math.PI/180,c=Math.cos(r),s=Math.sin(r); return [1,0,0,0, 0,c,s,0, 0,-s,c,0, 0,0,0,1]; }
+    function rotationY(d){ const r=d*Math.PI/180,c=Math.cos(r),s=Math.sin(r); return [c,0,-s,0, 0,1,0,0, s,0,c,0, 0,0,0,1]; }
+    function rotationZ(d){ const r=d*Math.PI/180,c=Math.cos(r),s=Math.sin(r); return [c,s,0,0, -s,c,0,0, 0,0,1,0, 0,0,0,1]; }
+    function scale(x,y,z){ return [x,0,0,0, 0,y,0,0, 0,0,z,0, 0,0,0,1]; }
+
+    let baseTransform = identity();
+
+    function aspectForLayout(){
+      const vw = video.videoWidth || 1920;
+      const vh = video.videoHeight || 1080;
+      if (layoutSel.value === 'sbs') return (vw/2) / vh;
+      if (layoutSel.value === 'ou') return vw / (vh/2);
+      return vw / vh;
+    }
+
+    function resizeCanvas(){ const dpr=Math.min(2, window.devicePixelRatio||1); canvas.width=Math.floor(canvas.clientWidth*dpr); canvas.height=Math.floor(canvas.clientHeight*dpr); gl.viewport(0,0,canvas.width,canvas.height); }
+    window.addEventListener('resize', resizeCanvas); resizeCanvas();
+
+    // Non-XR preview (flat)
+    function render2D(){
+      gl.clearColor(0,0,0,1); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+      const proj=identity(), view=identity();
+      const asp=aspectForLayout(); const w=1.8, h=w/asp; const model=scale(w,h,1);
+      gl.useProgram(prog);
+      gl.uniformMatrix4fv(uProj,false,new Float32Array(proj));
+      gl.uniformMatrix4fv(uView,false,new Float32Array(view));
+      gl.uniformMatrix4fv(uModel,false,new Float32Array(model));
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.uniform1i(uTex,0);
+      gl.uniform1i(uEye,0);
+      gl.uniform1i(uLayout, layoutSel.value==='mono'?0:(layoutSel.value==='sbs'?1:2));
+      gl.uniform1f(uShift, 0.0);
+      gl.uniform1i(uSwap, 0);
+      gl.uniform2f(uPerEyeOffset, 0,0); gl.uniform1f(uPerEyeScale, 1.0);
+      if (video.readyState>=2) gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,video);
+      gl.bindBuffer(gl.ARRAY_BUFFER, posBuf); gl.enableVertexAttribArray(aPos); gl.vertexAttribPointer(aPos,3,gl.FLOAT,false,0,0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, uvBuf); gl.enableVertexAttribArray(aUV); gl.vertexAttribPointer(aUV,2,gl.FLOAT,false,0,0);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf); gl.drawElements(gl.TRIANGLES,6,gl.UNSIGNED_SHORT,0);
+      requestAnimationFrame(render2D);
+    }
+    requestAnimationFrame(render2D);
+
+    async function startXR(){
+      if (!navigator.xr) { st('WebXR not available.'); return; }
+      try {
+        const ok = await navigator.xr.isSessionSupported('immersive-vr'); if(!ok){ st('immersive-vr not supported.'); return; }
+        await gl.makeXRCompatible();
+        xrSession = await navigator.xr.requestSession('immersive-vr', { requiredFeatures: ['local'] });
+        xrLayer = new XRWebGLLayer(xrSession, gl);
+        xrSession.updateRenderState({ baseLayer: xrLayer });
+        xrRefSpace = await xrSession.requestReferenceSpace('local');
+        xrSession.addEventListener('end', ()=>{ xrSession=null; st('Exited VR.'); });
+        st('Entered VR.');
+        xrSession.requestAnimationFrame(onXRFrame);
+      } catch(e){ st('Failed to start VR (needs HTTPS + user click).'); }
+    }
+
+    function onXRFrame(t, frame){
+      const session = frame.session;
+      session.requestAnimationFrame(onXRFrame);
+      const pose = frame.getViewerPose(xrRefSpace);
+      if (!pose) return;
+
+      // Poll controller to toggle overlay / exit on back buttons (best effort)
+      for (const src of xrSession.inputSources) {
+        if (!src.gamepad) continue;
+        const gp = src.gamepad;
+        if (!onXRFrame.prev) onXRFrame.prev = Array(gp.buttons.length).fill(false);
+        for (let i=0;i<gp.buttons.length;i++){
+          const pressed = gp.buttons[i].pressed;
+          if (pressed && !onXRFrame.prev[i]) {
+            if (i===0 || i===1) { overlay.classList.toggle('show'); setOverlayVals(); }
+            if (i===3 || i===4) { xrSession.end(); }
+          }
+          onXRFrame.prev[i] = pressed;
+        }
+      }
+
+      gl.bindFramebuffer(gl.FRAMEBUFFER, xrLayer.framebuffer);
+      gl.clearColor(0,0,0,1); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+
+      // Build model and (if needed) curved mesh
+      const dist = parseFloat(distanceIn.value);
+      const widthM = parseFloat(widthIn.value);
+      const asp = aspectForLayout();
+      const heightM = widthM / asp;
+
+      let model;
+      if (screenMode === 'flat') {
+        model = identity();
+        model = translation(0,0,-dist);
+        model = multiply(rotationX(parseFloat(ol('olTilt').value)), model);
+        model = multiply(rotationY(parseFloat(ol('olYaw').value)), model);
+        model = multiply(rotationZ(parseFloat(ol('olRoll').value)), model);
+        model = multiply(scale(widthM, heightM, 1), model);
+        model = multiply(baseTransform, model);
+      } else {
+        if (curvedDirty) rebuildCurvedMesh();
+        model = identity();
+        model = multiply(rotationX(parseFloat(ol('olTilt').value)), model);
+        model = multiply(rotationY(parseFloat(ol('olYaw').value)), model);
+        model = multiply(rotationZ(parseFloat(ol('olRoll').value)), model);
+        model = multiply(baseTransform, model);
+      }
+
+      // Update video texture
+      try { if (video.readyState>=2) { gl.bindTexture(gl.TEXTURE_2D, tex); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,video); } } catch(e){}
+
+      gl.useProgram(prog);
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.uniform1i(uTex,0);
+      gl.uniform1i(uLayout, layoutSel.value==='mono'?0:(layoutSel.value==='sbs'?1:2));
+      gl.uniform1f(uShift, parseFloat(ol('olShift').value)/100.0);
+      gl.uniform1i(uSwap, swapEyes.checked?1:0);
+      gl.uniform2f(uPerEyeOffset, parseFloat(ol('olXOff').value)/100/2, parseFloat(ol('olYOff').value)/100/2);
+      gl.uniform1f(uPerEyeScale, parseFloat(ol('olScale').value)/100);
+
+      for (const view of pose.views) {
+        const vp = xrLayer.getViewport(view);
+        gl.viewport(vp.x, vp.y, vp.width, vp.height);
+        gl.uniformMatrix4fv(uProj,false, view.projectionMatrix);
+        gl.uniformMatrix4fv(uView,false, view.transform.inverse.matrix);
+        gl.uniformMatrix4fv(uModel,false, new Float32Array(model));
+        const eyeIndex = (view.eye === 'right') ? 1 : 0;
+        gl.uniform1i(uEye, eyeIndex);
+
+        if (screenMode === 'flat') {
+          gl.bindBuffer(gl.ARRAY_BUFFER, posBuf); gl.enableVertexAttribArray(aPos); gl.vertexAttribPointer(aPos,3,gl.FLOAT,false,0,0);
+          gl.bindBuffer(gl.ARRAY_BUFFER, uvBuf);  gl.enableVertexAttribArray(aUV);  gl.vertexAttribPointer(aUV,2,gl.FLOAT,false,0,0);
+          gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf); gl.drawElements(gl.TRIANGLES,6,gl.UNSIGNED_SHORT,0);
+        } else {
+          gl.bindBuffer(gl.ARRAY_BUFFER, curvedMesh.posBuf); gl.enableVertexAttribArray(aPos); gl.vertexAttribPointer(aPos,3,gl.FLOAT,false,0,0);
+          gl.bindBuffer(gl.ARRAY_BUFFER, curvedMesh.uvBuf);  gl.enableVertexAttribArray(aUV);  gl.vertexAttribPointer(aUV,2,gl.FLOAT,false,0,0);
+          gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, curvedMesh.idxBuf); gl.drawElements(gl.TRIANGLES, curvedMesh.count, gl.UNSIGNED_SHORT, 0);
+        }
+      }
+    }
+
+    video.addEventListener('loadedmetadata', ()=>{
+      st(`Video ${video.videoWidth}x${video.videoHeight} loaded. Pick layout, then Play → Enter VR.`);
+    });
+  </script>
 </body>
 </html>
